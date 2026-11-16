@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Drop Shadow -->
+    <item android:top="4dp">
+        <shape android:shape="rectangle">
+            <corners android:radius="18dp" />
+            <solid android:color="#20000000" />
+        </shape>
+    </item>
+    <!-- Tray Face -->
+    <item android:bottom="4dp">
+        <shape android:shape="rectangle">
+            <corners android:radius="18dp" />
+            <solid android:color="@color/dock_wood_bg" />
+            <stroke
+                android:width="2dp"
+                android:color="@color/dock_wood_border" />
+        </shape>
+    </item>
+</layer-list>

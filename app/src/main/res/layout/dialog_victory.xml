@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_dialog_card"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:padding="28dp">
+
+    <!-- Celebration Header Icon -->
+    <ImageView
+        android:id="@+id/ivVictoryTrophy"
+        android:layout_width="80dp"
+        android:layout_height="80dp"
+        android:contentDescription="@null"
+        android:src="@drawable/ic_star" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:fontFamily="sans-serif-black"
+        android:text="@string/level_completed"
+        android:textColor="@color/primary_dark"
+        android:textSize="26sp" />
+
+    <!-- Stars Rating Row -->
+    <LinearLayout
+        android:id="@+id/llVictoryStars"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:id="@+id/ivVicStar1"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_star" />
+
+        <ImageView
+            android:id="@+id/ivVicStar2"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_marginHorizontal="8dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_star" />
+
+        <ImageView
+            android:id="@+id/ivVicStar3"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_star" />
+    </LinearLayout>
+
+    <!-- Score & Coins Earned -->
+    <TextView
+        android:id="@+id/tvVicScore"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:fontFamily="sans-serif-bold"
+        android:textColor="@color/text_dark"
+        android:textSize="18sp"
+        tools:text="Final Score: 1850" />
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/bg_stat_chip"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_coin" />
+
+        <TextView
+            android:id="@+id/tvVicCoins"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:fontFamily="sans-serif-bold"
+            android:textColor="@color/accent_gold"
+            android:textSize="16sp"
+            tools:text="+35 Coins" />
+    </LinearLayout>
+
+    <!-- Next Level Button -->
+    <FrameLayout
+        android:id="@+id/btnVicNextLevel"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:layout_marginTop="24dp"
+        android:background="@drawable/bg_button_gold"
+        android:clickable="true"
+        android:focusable="true">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:fontFamily="sans-serif-black"
+            android:text="@string/next_level"
+            android:textColor="@color/text_light"
+            android:textSize="18sp" />
+    </FrameLayout>
+
+    <!-- Replay Button -->
+    <FrameLayout
+        android:id="@+id/btnVicReplay"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/bg_button_green"
+        android:clickable="true"
+        android:focusable="true">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:fontFamily="sans-serif-bold"
+            android:text="@string/replay"
+            android:textColor="@color/text_light"
+            android:textSize="16sp" />
+    </FrameLayout>
+
+</LinearLayout>

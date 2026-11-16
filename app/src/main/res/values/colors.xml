@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="primary">#2E7D32</color>
+    <color name="primary_dark">#1B5E20</color>
+    <color name="primary_light">#4CAF50</color>
+    <color name="accent_gold">#FFB300</color>
+    <color name="accent_gold_dark">#FF8F00</color>
+    <color name="accent_orange">#FF6F00</color>
+    <color name="accent_red">#E53935</color>
+    <color name="accent_blue">#1E88E5</color>
+    
+    <!-- Game Board & Backgrounds -->
+    <color name="game_bg_top">#56ab2f</color>
+    <color name="game_bg_bottom">#a8e063</color>
+    <color name="dock_wood_bg">#EAFFFFFF</color>
+    <color name="dock_slot_bg">#12000000</color>
+    <color name="dock_slot_border">#22000000</color>
+    <color name="dock_wood_border">#FFD54F</color>
+    <color name="dock_highlight">#FFE082</color>
+    
+    <!-- Tile styling -->
+    <color name="tile_face">#FFFFFF</color>
+    <color name="tile_bevel_top">#FFFFFF</color>
+    <color name="tile_bevel_bottom">#CBD5E1</color>
+    <color name="tile_shadow">#26000000</color>
+    <color name="tile_blocked_tint">#88000000</color>
+    <color name="tile_border">#E2E8F0</color>
+
+    <!-- Level Select Colors for Light Theme -->
+    <color name="level_locked_face">#F1F5F9</color>
+    <color name="level_locked_base">#CBD5E1</color>
+    <color name="level_locked_border">#E2E8F0</color>
+    <color name="level_locked_text">#64748B</color>
+    <color name="level_locked_icon">#94A3B8</color>
+
+    <!-- Dialogs & UI -->
+    <color name="dialog_bg">#FFFFFF</color>
+    <color name="dialog_overlay">#99000000</color>
+    <color name="card_bg">#FFFFFF</color>
+    <color name="text_dark">#263238</color>
+    <color name="text_light">#FFFFFF</color>
+    <color name="text_muted">#78909C</color>
+    <color name="star_active">#FFD54F</color>
+    <color name="star_inactive">#CFD8DC</color>
+</resources>
