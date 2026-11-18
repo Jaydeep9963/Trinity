@@ -15,7 +15,7 @@ import com.aaritlabs.trinity.databinding.ItemLevelCellBinding
 
 class LevelAdapter(
     private val context: Context,
-    private val totalLevels: Int = 50,
+    private val totalLevels: Int = 1000,
     private val onLevelSelected: (Int) -> Unit
 ) : RecyclerView.Adapter<LevelAdapter.LevelViewHolder>() {
 

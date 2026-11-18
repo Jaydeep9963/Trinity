@@ -334,50 +334,67 @@ object LevelGenerator {
     private fun createProceduralLevel(levelNum: Int): LevelConfig {
         // Deterministic generation based on levelNum
         val rand = Random(levelNum.toLong() * 9973L)
-        // Number of trios scales with level: 12 to 26 trios (36 to 78 tiles)
-        val numTrios = (12 + (levelNum % 15)).coerceIn(12, 26)
-        val totalTiles = numTrios * 3
-        val maxLayers = 4 + (levelNum % 2)
+        // Number of trios scales with level: 15 to 25 trios (45 to 75 tiles)
+        val numTrios = (15 + ((levelNum - 9) % 11)).coerceIn(15, 25)
+        val targetTiles = numTrios * 3
+        val maxLayers = 3 + (levelNum % 2) // 3 or 4 layers
 
         val positions = mutableListOf<Triple<Int, Float, Float>>()
         val colStep = 1.15f
         val rowStep = 1.15f
-        val centerCol = 2.8f
-        val centerRow = 3.0f
+        val centerCol = 2.5f
+        val centerRow = 2.5f
 
-        val tilesPerLayer = totalTiles / maxLayers
-        val occupiedByLayer = mutableMapOf<Int, MutableSet<Pair<Int, Int>>>()
+        // Multi-layer pyramid distribution
+        val layerRatios = if (maxLayers == 4) listOf(0.42f, 0.30f, 0.18f, 0.10f) else listOf(0.50f, 0.32f, 0.18f)
+        val layerTargets = layerRatios.map { (targetTiles * it).toInt().coerceAtLeast(3) }.toMutableList()
+        val sum = layerTargets.sum()
+        layerTargets[0] += (targetTiles - sum)
 
-        // Generate layers with pyramid / concentric step
         for (layer in 0 until maxLayers) {
-            val layerOccupied = mutableSetOf<Pair<Int, Int>>()
-            occupiedByLayer[layer] = layerOccupied
+            val countForLayer = layerTargets[layer]
             val isStaggered = (layer % 2 == 1)
-            val halfShift = if (isStaggered) 0.5f else 0.0f
-            val countForThisLayer = if (layer == maxLayers - 1) totalTiles - positions.size else tilesPerLayer
+            val maxR = (2 - layer / 2).coerceAtLeast(1)
+            val maxC = (2 - layer / 2).coerceAtLeast(1)
 
-            // Candidate grid cells expanding outward from center
-            val gridRadius = (4 - layer).coerceAtLeast(1)
-            val candidateCells = mutableListOf<Pair<Int, Int>>()
-            for (r in -gridRadius..gridRadius) {
-                for (c in -gridRadius..gridRadius) {
-                    candidateCells.add(Pair(c, r))
+            val layerPositions = mutableListOf<Triple<Int, Float, Float>>()
+            val occupied = mutableSetOf<String>()
+
+            data class CellDist(val c: Int, val r: Int, val dist: Float)
+            val cells = mutableListOf<CellDist>()
+            for (r in -maxR..maxR) {
+                for (c in 0..maxC) {
+                    val dist = kotlin.math.sqrt((c * c + r * r).toFloat())
+                    cells.add(CellDist(c, r, dist))
                 }
             }
-            candidateCells.shuffle(rand)
+            cells.sortBy { it.dist + (rand.nextInt(100) - 50) * 0.02f }
 
-            var added = 0
-            for (cell in candidateCells) {
-                if (added >= countForThisLayer) break
-                val (c, r) = cell
-                if (!layerOccupied.contains(cell)) {
-                    layerOccupied.add(cell)
-                    val col = centerCol + (c.toFloat() + halfShift) * colStep
-                    val row = centerRow + (r.toFloat() + halfShift) * rowStep
-                    positions.add(Triple(layer, col, row))
-                    added++
+            for (cell in cells) {
+                if (layerPositions.size >= countForLayer) break
+                val (c, r, _) = cell
+
+                if (c == 0 && !isStaggered) {
+                    val key = "0,$r"
+                    if (!occupied.contains(key)) {
+                        occupied.add(key)
+                        layerPositions.add(Triple(layer, centerCol + 0f * colStep, centerRow + r.toFloat() * rowStep))
+                    }
+                } else {
+                    val cLeft = if (isStaggered) (-c - 0.5f) else (-c.toFloat())
+                    val cRight = if (isStaggered) (c + 0.5f) else (c.toFloat())
+                    val rCoord = if (isStaggered) (r + 0.5f) else r.toFloat()
+                    val keyL = "$cLeft,$rCoord"
+                    val keyR = "$cRight,$rCoord"
+                    if (!occupied.contains(keyL) && !occupied.contains(keyR)) {
+                        occupied.add(keyL)
+                        occupied.add(keyR)
+                        layerPositions.add(Triple(layer, centerCol + cLeft * colStep, centerRow + rCoord * rowStep))
+                        layerPositions.add(Triple(layer, centerCol + cRight * colStep, centerRow + rCoord * rowStep))
+                    }
                 }
             }
+            positions.addAll(layerPositions)
         }
 
         // Safety: strictly ensure multiple of 3

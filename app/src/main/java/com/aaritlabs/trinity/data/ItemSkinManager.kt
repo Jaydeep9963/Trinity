@@ -33,7 +33,7 @@ object ItemSkinManager {
             "\uD83C\uDF4D", // 8 Pineapple
             "\uD83C\uDF52", // 9 Cherry
             "\uD83E\uDED0", // 10 Blueberry
-            "\uD83C\uDF51", // 11 Peach
+            "\uD83C\uDF50", // 11 Pear
             "\uD83C\uDF4B", // 12 Lemon
             "\uD83E\uDD51", // 13 Avocado
             "\uD83E\uDD55", // 14 Carrot
@@ -89,7 +89,7 @@ object ItemSkinManager {
             "\uD83D\uDE0B", // 10 Yummy
             "\uD83D\uDE07", // 11 Halo
             "\uD83D\uDE1C", // 12 Wink Tongue
-            "\uD83E\uDD24", // 13 Drool
+            "\uD83E\uDD14", // 13 Thinking Face
             "\uD83E\uDD13", // 14 Nerd
             "\uD83D\uDE3B", // 15 Cat Heart Eyes
             "\uD83D\uDC8E", // 16 Diamond
@@ -99,7 +99,61 @@ object ItemSkinManager {
         )
     )
 
-    val ALL_SKINS = listOf(FRUITS, FLOWERS, EMOTIONS)
+    val ANIMALS = ItemSkin(
+        id = "skin_animals",
+        name = "Cute Animals",
+        iconEmoji = "\uD83D\uDC3C", // 🐼
+        items = listOf(
+            "\uD83D\uDC36", // 1 Puppy
+            "\uD83D\uDC31", // 2 Kitty
+            "\uD83D\uDC3C", // 3 Panda
+            "\uD83E\uDD8A", // 4 Fox
+            "\uD83D\uDC3B", // 5 Bear
+            "\uD83E\uDD81", // 6 Lion
+            "\uD83D\uDC30", // 7 Bunny
+            "\uD83D\uDC2F", // 8 Tiger
+            "\uD83D\uDC28", // 9 Koala
+            "\uD83D\uDC38", // 10 Frog
+            "\uD83D\uDC35", // 11 Monkey
+            "\uD83D\uDC27", // 12 Penguin
+            "\uD83E\uDD84", // 13 Unicorn
+            "\uD83D\uDC1D", // 14 Honeybee
+            "\uD83E\uDD8B", // 15 Butterfly
+            "\uD83E\uDD89", // 16 Owl
+            "\uD83D\uDC19", // 17 Octopus
+            "\uD83D\uDC2C", // 18 Dolphin
+            "\uD83E\uDD86"  // 19 Duck
+        )
+    )
+
+    val SWEETS = ItemSkin(
+        id = "skin_sweets",
+        name = "Sweet Bakery",
+        iconEmoji = "\uD83C\uDF66", // 🍦
+        items = listOf(
+            "\uD83C\uDF66", // 1 Ice Cream
+            "\uD83C\uDF69", // 2 Doughnut
+            "\uD83C\uDF70", // 3 Cake
+            "\uD83C\uDF6B", // 4 Chocolate
+            "\uD83C\uDF6D", // 5 Lollipop
+            "\uD83C\uDF6C", // 6 Candy
+            "\uD83E\uDDC1", // 7 Cupcake
+            "\uD83C\uDF6E", // 8 Pudding
+            "\uD83E\uDD5E", // 9 Pancakes
+            "\uD83C\uDF6A", // 10 Cookie
+            "\uD83E\uDDC7", // 11 Waffle
+            "\uD83E\uDD67", // 12 Pie
+            "\uD83C\uDF67", // 13 Shaved Ice
+            "\uD83E\uDDCB", // 14 Bubble Tea
+            "\uD83C\uDF68", // 15 Sundae
+            "\uD83C\uDF7F", // 16 Popcorn
+            "\uD83C\uDF61", // 17 Dango
+            "\uD83E\uDD60", // 18 Fortune Cookie
+            "\uD83C\uDF60"  // 19 Roasted Sweet Potato
+        )
+    )
+
+    val ALL_SKINS = listOf(FLOWERS, FRUITS, EMOTIONS, ANIMALS, SWEETS)
 
     fun getSkinById(id: String): ItemSkin {
         return ALL_SKINS.find { it.id == id } ?: FRUITS

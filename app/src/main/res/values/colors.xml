@@ -42,4 +42,12 @@
     <color name="text_muted">#78909C</color>
     <color name="star_active">#FFD54F</color>
     <color name="star_inactive">#CFD8DC</color>
+
+    <!-- Dialog Item Cards (Light Theme) -->
+    <color name="dialog_item_bg">#F8FAFC</color>
+    <color name="dialog_item_stroke">#CBD5E1</color>
+    <color name="dialog_item_selected_bg">#FFFBEB</color>
+    <color name="dialog_item_selected_stroke">#F59E0B</color>
+    <color name="dialog_item_title">#0F172A</color>
+    <color name="dialog_item_desc">#475569</color>
 </resources>

@@ -15,7 +15,7 @@ enum class TileType(
     PINEAPPLE("Pineapple", "\uD83C\uDF4D"),
     CHERRY("Cherry", "\uD83C\uDF52"),
     BLUEBERRY("Blueberry", "\uD83E\uDED0"),
-    PEACH("Peach", "\uD83C\uDF51"),
+    PEAR("Pear", "\uD83C\uDF50"),
     LEMON("Lemon", "\uD83C\uDF4B"),
     AVOCADO("Avocado", "\uD83E\uDD51"),
     CLOVER("Clover", "\uD83C\uDF40"),

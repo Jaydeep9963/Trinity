@@ -85,9 +85,10 @@ class GamePreferences(context: Context) {
     }
 
     fun unlockNextLevel(completedLevel: Int) {
+        val next = (completedLevel + 1).coerceAtMost(1000)
         if (completedLevel >= highestUnlockedLevel) {
-            highestUnlockedLevel = completedLevel + 1
+            highestUnlockedLevel = next
         }
-        currentLevel = completedLevel + 1
+        currentLevel = next
     }
 }

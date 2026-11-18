@@ -27,8 +27,9 @@ import com.aaritlabs.trinity.databinding.ActivityMainBinding
 import com.aaritlabs.trinity.databinding.DialogHowToPlayBinding
 import com.aaritlabs.trinity.databinding.DialogLevelsBinding
 import com.aaritlabs.trinity.databinding.DialogSettingsBinding
+import com.aaritlabs.trinity.databinding.DialogSkinBinding
 import com.aaritlabs.trinity.databinding.DialogSoundQuickBinding
-import com.aaritlabs.trinity.databinding.DialogThemeQuickBinding
+import com.aaritlabs.trinity.databinding.DialogThemeBinding
 
 class MainActivity : AppCompatActivity() {
 
@@ -107,12 +108,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateDashboard() {
+        val level = maxOf(prefs.highestUnlockedLevel, prefs.currentLevel)
         binding.tvCoins.text = prefs.coins.toString()
-        binding.tvPlayButton.text = getString(R.string.play).uppercase()
+        binding.tvPlayButton.text = "CONTINUE $level"
     }
 
     private fun setupListeners() {
         binding.btnPlay.setOnClickListener {
+            val levelToPlay = maxOf(prefs.highestUnlockedLevel, prefs.currentLevel)
             soundManager.playButton()
             soundManager.vibrate(30)
             it.animate()
@@ -126,15 +129,21 @@ class MainActivity : AppCompatActivity() {
                         .setDuration(120)
                         .setInterpolator(OvershootInterpolator())
                         .withEndAction {
-                            launchGame(prefs.currentLevel)
+                            launchGame(levelToPlay)
                         }.start()
                 }.start()
+        }
+
+        binding.btnSkin.setOnClickListener {
+            soundManager.playButton()
+            soundManager.vibrate(25)
+            showSkinModal()
         }
 
         binding.btnTheme.setOnClickListener {
             soundManager.playButton()
             soundManager.vibrate(25)
-            showThemeQuickModal()
+            showThemeModal()
         }
 
         binding.btnSound.setOnClickListener {
@@ -259,8 +268,8 @@ class MainActivity : AppCompatActivity() {
         dialog.show()
     }
 
-    private fun showThemeQuickModal() {
-        val dialogBinding = DialogThemeQuickBinding.inflate(LayoutInflater.from(this))
+    private fun showThemeModal() {
+        val dialogBinding = DialogThemeBinding.inflate(LayoutInflater.from(this))
         val dialog = AlertDialog.Builder(this)
             .setView(dialogBinding.root)
             .create()
@@ -270,38 +279,49 @@ class MainActivity : AppCompatActivity() {
             setWindowAnimations(R.style.DialogAnimation)
         }
 
-        when (prefs.equippedItemSkin) {
-            "skin_flowers" -> dialogBinding.rbSkinFlowersQuick.isChecked = true
-            "skin_emotions" -> dialogBinding.rbSkinEmotionsQuick.isChecked = true
-            else -> dialogBinding.rbSkinFruitsQuick.isChecked = true
+        fun updateThemeSelection() {
+            val isLight = prefs.themeMode == GamePreferences.THEME_LIGHT
+            val isDark = prefs.themeMode == GamePreferences.THEME_DARK
+            val isSystem = !isLight && !isDark
+
+            dialogBinding.rbThemeLight.isChecked = isLight
+            dialogBinding.rbThemeDark.isChecked = isDark
+            dialogBinding.rbThemeSystem.isChecked = isSystem
+
+            dialogBinding.cardThemeLight.setBackgroundResource(
+                if (isLight) R.drawable.bg_dialog_item_card_selected else R.drawable.bg_dialog_item_card
+            )
+            dialogBinding.cardThemeDark.setBackgroundResource(
+                if (isDark) R.drawable.bg_dialog_item_card_selected else R.drawable.bg_dialog_item_card
+            )
+            dialogBinding.cardThemeSystem.setBackgroundResource(
+                if (isSystem) R.drawable.bg_dialog_item_card_selected else R.drawable.bg_dialog_item_card
+            )
         }
 
-        dialogBinding.rgSkinQuick.setOnCheckedChangeListener { _, checkedId ->
+        updateThemeSelection()
+
+        dialogBinding.cardThemeLight.setOnClickListener {
             soundManager.playButton()
             soundManager.vibrate(25)
-            val newSkin = when (checkedId) {
-                R.id.rbSkinFlowersQuick -> "skin_flowers"
-                R.id.rbSkinEmotionsQuick -> "skin_emotions"
-                else -> "skin_fruits"
-            }
-            prefs.equippedItemSkin = newSkin
+            prefs.themeMode = GamePreferences.THEME_LIGHT
+            updateThemeSelection()
+            dialog.dismiss()
         }
 
-        when (prefs.themeMode) {
-            GamePreferences.THEME_LIGHT -> dialogBinding.rbThemeLightQuick.isChecked = true
-            GamePreferences.THEME_DARK -> dialogBinding.rbThemeDarkQuick.isChecked = true
-            else -> dialogBinding.rbThemeSystemQuick.isChecked = true
-        }
-
-        dialogBinding.rgThemeQuick.setOnCheckedChangeListener { _, checkedId ->
+        dialogBinding.cardThemeDark.setOnClickListener {
             soundManager.playButton()
             soundManager.vibrate(25)
-            val newTheme = when (checkedId) {
-                R.id.rbThemeLightQuick -> GamePreferences.THEME_LIGHT
-                R.id.rbThemeDarkQuick -> GamePreferences.THEME_DARK
-                else -> GamePreferences.THEME_SYSTEM
-            }
-            prefs.themeMode = newTheme
+            prefs.themeMode = GamePreferences.THEME_DARK
+            updateThemeSelection()
+            dialog.dismiss()
+        }
+
+        dialogBinding.cardThemeSystem.setOnClickListener {
+            soundManager.playButton()
+            soundManager.vibrate(25)
+            prefs.themeMode = GamePreferences.THEME_SYSTEM
+            updateThemeSelection()
             dialog.dismiss()
         }
 
@@ -311,6 +331,78 @@ class MainActivity : AppCompatActivity() {
         }
 
         dialog.show()
+    }
+
+    private fun showSkinModal() {
+        val dialogBinding = DialogSkinBinding.inflate(LayoutInflater.from(this))
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogBinding.root)
+            .create()
+
+        dialog.window?.apply {
+            setBackgroundDrawableResource(android.R.color.transparent)
+            setWindowAnimations(R.style.DialogAnimation)
+        }
+
+        fun updateSkinBadges() {
+            val currentSkin = prefs.equippedItemSkin
+            val isFlowers = currentSkin == "skin_flowers"
+            val isFruits = currentSkin == "skin_fruits"
+            val isEmotions = currentSkin == "skin_emotions"
+            val isAnimals = currentSkin == "skin_animals"
+            val isSweets = currentSkin == "skin_sweets"
+
+            dialogBinding.badgeSkinFlowers.visibility = if (isFlowers) android.view.View.VISIBLE else android.view.View.GONE
+            dialogBinding.badgeSkinFruits.visibility = if (isFruits) android.view.View.VISIBLE else android.view.View.GONE
+            dialogBinding.badgeSkinEmotions.visibility = if (isEmotions) android.view.View.VISIBLE else android.view.View.GONE
+            dialogBinding.badgeSkinAnimals.visibility = if (isAnimals) android.view.View.VISIBLE else android.view.View.GONE
+            dialogBinding.badgeSkinSweets.visibility = if (isSweets) android.view.View.VISIBLE else android.view.View.GONE
+
+            dialogBinding.cardSkinFlowers.setBackgroundResource(if (isFlowers) R.drawable.bg_dialog_item_card_selected else R.drawable.bg_dialog_item_card)
+            dialogBinding.cardSkinFruits.setBackgroundResource(if (isFruits) R.drawable.bg_dialog_item_card_selected else R.drawable.bg_dialog_item_card)
+            dialogBinding.cardSkinEmotions.setBackgroundResource(if (isEmotions) R.drawable.bg_dialog_item_card_selected else R.drawable.bg_dialog_item_card)
+            dialogBinding.cardSkinAnimals.setBackgroundResource(if (isAnimals) R.drawable.bg_dialog_item_card_selected else R.drawable.bg_dialog_item_card)
+            dialogBinding.cardSkinSweets.setBackgroundResource(if (isSweets) R.drawable.bg_dialog_item_card_selected else R.drawable.bg_dialog_item_card)
+        }
+
+        updateSkinBadges()
+
+        fun equipSkin(skinId: String, skinName: String) {
+            soundManager.playMatch()
+            soundManager.vibrate(35)
+            prefs.equippedItemSkin = skinId
+            updateSkinBadges()
+            Toast.makeText(this, "Equipped $skinName Skin!", Toast.LENGTH_SHORT).show()
+        }
+
+        dialogBinding.cardSkinFlowers.setOnClickListener {
+            equipSkin("skin_flowers", "Nature & Flowers")
+        }
+
+        dialogBinding.cardSkinFruits.setOnClickListener {
+            equipSkin("skin_fruits", "Fruits & Food")
+        }
+
+        dialogBinding.cardSkinEmotions.setOnClickListener {
+            equipSkin("skin_emotions", "Smileys & Emotions")
+        }
+
+        dialogBinding.cardSkinAnimals.setOnClickListener {
+            equipSkin("skin_animals", "Cute Animals")
+        }
+
+        dialogBinding.cardSkinSweets.setOnClickListener {
+            equipSkin("skin_sweets", "Sweet Bakery")
+        }
+
+        dialogBinding.btnCloseSkinModal.setOnClickListener {
+            soundManager.playButton()
+            dialog.dismiss()
+        }
+
+        dialog.show()
+        val dialogWidth = (resources.displayMetrics.widthPixels * 0.90f).toInt()
+        dialog.window?.setLayout(dialogWidth, ViewGroup.LayoutParams.WRAP_CONTENT)
     }
 
     private fun showLevelsDialog() {
@@ -324,9 +416,9 @@ class MainActivity : AppCompatActivity() {
             setWindowAnimations(R.style.DialogAnimation)
         }
 
-        dialogBinding.tvLevelsProgress.text = "Unlocked: ${prefs.highestUnlockedLevel} / 50 Levels"
+        dialogBinding.tvLevelsProgress.text = "Unlocked: ${prefs.highestUnlockedLevel} / 1000 Levels"
 
-        val adapter = LevelAdapter(this, totalLevels = 50) { selectedLevel ->
+        val adapter = LevelAdapter(this, totalLevels = 1000) { selectedLevel ->
             dialog.dismiss()
             soundManager.playButton()
             launchGame(selectedLevel)
@@ -336,7 +428,7 @@ class MainActivity : AppCompatActivity() {
         dialogBinding.rvLevels.layoutManager = GridLayoutManager(this, 4)
         dialogBinding.rvLevels.adapter = adapter
 
-        val targetPos = (prefs.highestUnlockedLevel - 1).coerceIn(0, 49)
+        val targetPos = (prefs.highestUnlockedLevel - 1).coerceIn(0, 999)
         dialogBinding.rvLevels.post {
             dialogBinding.rvLevels.scrollToPosition(targetPos)
         }
@@ -366,11 +458,22 @@ class MainActivity : AppCompatActivity() {
         dialogBinding.switchMusic.isChecked = prefs.musicEnabled
         dialogBinding.switchVibration.isChecked = prefs.vibrationEnabled
 
-        when (prefs.themeMode) {
-            GamePreferences.THEME_LIGHT -> dialogBinding.rbThemeLight.isChecked = true
-            GamePreferences.THEME_DARK -> dialogBinding.rbThemeDark.isChecked = true
-            else -> dialogBinding.rbThemeSystem.isChecked = true
+        fun updateSettingsLabels() {
+            dialogBinding.tvCurrentThemeValue.text = when (prefs.themeMode) {
+                GamePreferences.THEME_LIGHT -> "Light ☀️"
+                GamePreferences.THEME_DARK -> "Dark 🌙"
+                else -> "System ⚙️"
+            }
+            dialogBinding.tvCurrentSkinValue.text = when (prefs.equippedItemSkin) {
+                "skin_flowers" -> "Flowers 🌺"
+                "skin_fruits" -> "Fruits 🍓"
+                "skin_emotions" -> "Smileys 🤩"
+                "skin_animals" -> "Animals 🐼"
+                "skin_sweets" -> "Bakery 🍦"
+                else -> "Flowers 🌺"
+            }
         }
+        updateSettingsLabels()
 
         dialogBinding.switchSound.setOnCheckedChangeListener { _, isChecked ->
             prefs.soundEnabled = isChecked
@@ -387,15 +490,16 @@ class MainActivity : AppCompatActivity() {
             if (isChecked) soundManager.vibrate(50)
         }
 
-        dialogBinding.rgTheme.setOnCheckedChangeListener { _, checkedId ->
+        dialogBinding.rowThemeSettings.setOnClickListener {
             soundManager.playButton()
-            val newTheme = when (checkedId) {
-                R.id.rbThemeLight -> GamePreferences.THEME_LIGHT
-                R.id.rbThemeDark -> GamePreferences.THEME_DARK
-                else -> GamePreferences.THEME_SYSTEM
-            }
-            prefs.themeMode = newTheme
-            dialog.dismiss()
+            showThemeModal()
+            updateSettingsLabels()
+        }
+
+        dialogBinding.rowSkinSettings.setOnClickListener {
+            soundManager.playButton()
+            showSkinModal()
+            updateSettingsLabels()
         }
 
         dialogBinding.btnCloseSettings.setOnClickListener {

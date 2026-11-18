@@ -23,7 +23,7 @@ data class Tile(
     fun overlaps(other: Tile): Boolean {
         val dx = abs(this.col - other.col)
         val dy = abs(this.row - other.row)
-        return dx < 0.95f && dy < 0.95f
+        return dx < 0.92f && dy < 0.92f
     }
 
     fun copyTile(): Tile {

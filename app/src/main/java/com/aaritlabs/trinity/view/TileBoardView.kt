@@ -207,15 +207,15 @@ class TileBoardView @JvmOverloads constructor(
             if (t.row > maxRow) maxRow = t.row
         }
 
-        val gridCols = (maxCol - minCol) + 1.2f
-        val gridRows = (maxRow - minRow) + 1.2f
+        val gridCols = (maxCol - minCol) + 1.15f
+        val gridRows = (maxRow - minRow) + 1.15f
 
         val availableW = viewW * 0.90f
         val availableH = viewH * 0.90f
 
         val cellW = availableW / gridCols
         val cellH = availableH / (gridRows * rowStepFactor)
-        gridCellSize = minOf(cellW, cellH).coerceIn(40f, 130f)
+        gridCellSize = minOf(cellW, cellH).coerceAtMost(130f).coerceAtLeast(15f)
 
         tileWidth = gridCellSize * 1.0f
         tileHeight = gridCellSize * 1.12f

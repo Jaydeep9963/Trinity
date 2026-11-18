@@ -449,8 +449,12 @@ class GameActivity : AppCompatActivity() {
         dialogBinding.btnVicNextLevel.setOnClickListener {
             dialog.dismiss()
             soundManager.playButton()
-            currentLevelNum++
-            setupGame()
+            if (currentLevelNum < 1000) {
+                currentLevelNum++
+                setupGame()
+            } else {
+                finish()
+            }
         }
 
         dialogBinding.btnVicReplay.setOnClickListener {

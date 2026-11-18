@@ -160,16 +160,20 @@
         android:layout_marginBottom="12dp"
         android:background="#E0E0E0" />
 
-    <!-- Theme Selector -->
+    <!-- Theme Selector Row -->
     <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/rowThemeSettings"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:paddingVertical="8dp">
+        android:background="?android:attr/selectableItemBackground"
+        android:clickable="true"
+        android:focusable="true"
+        android:paddingVertical="10dp">
 
         <ImageView
             android:id="@+id/ivThemeIcon"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
+            android:layout_width="26dp"
+            android:layout_height="26dp"
             android:contentDescription="@null"
             android:src="@drawable/ic_theme_mode"
             app:layout_constraintBottom_toBottomOf="parent"
@@ -182,51 +186,70 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="12dp"
             android:fontFamily="sans-serif-medium"
-            android:text="@string/theme_title"
+            android:text="App Theme"
             android:textColor="@color/text_dark"
             android:textSize="16sp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toEndOf="@+id/ivThemeIcon"
             app:layout_constraintTop_toTopOf="parent" />
 
-        <RadioGroup
-            android:id="@+id/rgTheme"
+        <TextView
+            android:id="@+id/tvCurrentThemeValue"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
+            android:fontFamily="sans-serif-bold"
+            android:text="System"
+            android:textColor="@color/accent_gold"
+            android:textSize="14sp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent">
+            app:layout_constraintTop_toTopOf="parent" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
-            <RadioButton
-                android:id="@+id/rbThemeLight"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="sans-serif"
-                android:text="@string/theme_light"
-                android:textColor="@color/text_dark"
-                android:textSize="13sp" />
+    <!-- Skin Selector Row -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/rowSkinSettings"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="?android:attr/selectableItemBackground"
+        android:clickable="true"
+        android:focusable="true"
+        android:paddingVertical="10dp">
 
-            <RadioButton
-                android:id="@+id/rbThemeDark"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
-                android:fontFamily="sans-serif"
-                android:text="@string/theme_dark"
-                android:textColor="@color/text_dark"
-                android:textSize="13sp" />
+        <ImageView
+            android:id="@+id/ivSkinIcon"
+            android:layout_width="26dp"
+            android:layout_height="26dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_palette"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
-            <RadioButton
-                android:id="@+id/rbThemeSystem"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
-                android:fontFamily="sans-serif"
-                android:text="@string/theme_system"
-                android:textColor="@color/text_dark"
-                android:textSize="13sp" />
-        </RadioGroup>
+        <TextView
+            android:id="@+id/tvSkinTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:fontFamily="sans-serif-medium"
+            android:text="Tile Skins"
+            android:textColor="@color/text_dark"
+            android:textSize="16sp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toEndOf="@+id/ivSkinIcon"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <TextView
+            android:id="@+id/tvCurrentSkinValue"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="sans-serif-bold"
+            android:text="Nature 🌺"
+            android:textColor="@color/accent_gold"
+            android:textSize="14sp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 
 </LinearLayout>
