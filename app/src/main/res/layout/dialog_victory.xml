@@ -57,16 +57,16 @@
             android:src="@drawable/ic_star" />
     </LinearLayout>
 
-    <!-- Score & Coins Earned -->
+    <!-- Level Stats: Completion Time & Coins Earned -->
     <TextView
-        android:id="@+id/tvVicScore"
+        android:id="@+id/tvVicTime"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
         android:fontFamily="sans-serif-bold"
         android:textColor="@color/text_dark"
-        android:textSize="18sp"
-        tools:text="Final Score: 1850" />
+        android:textSize="16sp"
+        tools:text="Time: 01:24 (⭐⭐⭐ Under 2 mins)" />
 
     <LinearLayout
         android:layout_width="wrap_content"

@@ -15,7 +15,7 @@
     <string name="theme_light">Light</string>
     <string name="theme_dark">Dark</string>
     <string name="how_to_play">How To Play</string>
-    <string name="how_to_play_desc">1. Tap uncovered tiles on the board to move them into your tray.\n2. Match 3 identical tiles to clear them with a blast!\n3. Beware: If your 7-slot tray fills up, you fail the level.\n4. Clear every tile to achieve victory and unlock the next level!</string>
+    <string name="how_to_play_desc">1. Tap uncovered tiles on the board to move them into your tray.\n2. Match 3 identical tiles to clear them with a blast!\n3. Each match awards 100 points and 20 coins (boosted by combos!).\n4. Star ratings are based on speed: under 2 mins = 3 Stars, under 6 mins = 2 Stars, over 6 mins = 1 Star.\n5. Beware: If your 7-slot tray fills up, you fail the level.\n6. Clear every tile to achieve victory and unlock the next level!</string>
     
     <!-- Boosters -->
     <string name="booster_undo">Undo</string>
@@ -35,4 +35,23 @@
     <string name="score">Score: %1$d</string>
     <string name="combo">COMBO x%1$d!</string>
     <string name="not_enough_coins">Not enough coins!</string>
+
+    <!-- Google AdMob Configuration -->
+    <string name="admob_app_id">ca-app-pub-4917639294278231~2948598436</string>
+    <string name="admob_banner_ad_id">ca-app-pub-4917639294278231/1493267720</string>
+    <string name="admob_rewarded_booster_ad_id">ca-app-pub-4917639294278231/8769122518</string>
+    <string name="admob_rewarded_coins_ad_id">ca-app-pub-4917639294278231/5483262436</string>
+    <string name="admob_interstitial_ad_id">ca-app-pub-4917639294278231/5083807181</string>
+
+    <!-- In-App Purchase Product Identifiers -->
+    <string name="iap_remove_ads">remove_ads</string>
+    <string name="iap_all_skins">unlock_all_skins</string>
+    <string name="iap_skin_fruits">skin_fruits</string>
+    <string name="iap_skin_smileys">skin_smileys</string>
+    <string name="iap_skin_animals">skin_animals</string>
+    <string name="iap_skin_bakery">skin_bakery</string>
+    <string name="iap_coins_500">coins_500</string>
+    <string name="iap_coins_1500">coins_1500</string>
+    <string name="iap_coins_5000">coins_5000</string>
+    <string name="iap_coins_15000">coins_15000</string>
 </resources>

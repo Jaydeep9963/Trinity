@@ -150,6 +150,12 @@ class TileBoardView @JvmOverloads constructor(
         }
     }
 
+    fun removeHighlight(tileId: Int) {
+        if (highlightedTileIds.remove(tileId)) {
+            invalidate()
+        }
+    }
+
     fun getTilePositionOnScreen(tile: Tile): RectF {
         val x = gridOffsetX + tile.col * gridCellSize
         val y = gridOffsetY + tile.row * gridCellSize * rowStepFactor - (tile.layer * 4f)
@@ -317,7 +323,7 @@ class TileBoardView @JvmOverloads constructor(
                 touchY >= y && touchY <= y + tileHeight
             ) {
                 if (!tile.isBlocked) {
-                    clearHighlights()
+                    removeHighlight(tile.id)
                     animateTileTap(tile)
                     onTileClickListener?.invoke(tile)
                 } else {

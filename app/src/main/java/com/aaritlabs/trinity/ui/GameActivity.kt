@@ -25,9 +25,20 @@ import com.aaritlabs.trinity.databinding.ActivityGameBinding
 import com.aaritlabs.trinity.databinding.DialogDefeatBinding
 import com.aaritlabs.trinity.databinding.DialogPauseBinding
 import com.aaritlabs.trinity.databinding.DialogVictoryBinding
+import android.content.res.ColorStateList
+import android.graphics.Color
+import androidx.core.animation.doOnEnd
+import com.aaritlabs.trinity.ads.AdMobManager
+import com.aaritlabs.trinity.databinding.DialogGetBoosterBinding
+import com.aaritlabs.trinity.databinding.DialogWatchAdBinding
+import java.util.Locale
 import com.aaritlabs.trinity.engine.GameEngine
 import com.aaritlabs.trinity.engine.LevelGenerator
 import com.aaritlabs.trinity.model.Tile
+
+enum class BoosterType {
+    UNDO, SHUFFLE, HINT
+}
 
 class GameActivity : AppCompatActivity() {
 
@@ -37,6 +48,16 @@ class GameActivity : AppCompatActivity() {
 
     private var currentLevelNum = 1
     private lateinit var gameEngine: GameEngine
+
+    private val timerHandler = Handler(Looper.getMainLooper())
+    private val timerRunnable = object : Runnable {
+        override fun run() {
+            if (!isFinishing && !isDestroyed && ::gameEngine.isInitialized) {
+                updateTimerDisplay()
+                timerHandler.postDelayed(this, 1000)
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -52,16 +73,6 @@ class GameActivity : AppCompatActivity() {
         setupSafeAreaInsets()
         setupGame()
         setupListeners()
-    }
-
-    override fun onResume() {
-        super.onResume()
-        soundManager.resumeBgm()
-    }
-
-    override fun onPause() {
-        super.onPause()
-        soundManager.pauseBgm()
     }
 
     private fun setupSafeAreaInsets() {
@@ -90,9 +101,12 @@ class GameActivity : AppCompatActivity() {
         }
     }
 
+    private var lastShownCoins = -1
+
     private fun setupGame() {
         val levelConfig = LevelGenerator.generateLevel(currentLevelNum)
         gameEngine = GameEngine(levelConfig)
+        lastShownCoins = 0
 
         binding.tvGameLevel.text = getString(R.string.level_label, currentLevelNum)
         updateStatsUI()
@@ -101,28 +115,74 @@ class GameActivity : AppCompatActivity() {
         binding.dockTrayView.setDockTiles(gameEngine.dockTiles)
 
         updateBoosterBadges()
+
+        timerHandler.removeCallbacks(timerRunnable)
+        timerHandler.post(timerRunnable)
+    }
+
+    private fun updateTimerDisplay() {
+        if (::gameEngine.isInitialized) {
+            val elapsed = gameEngine.elapsedSeconds
+            val mins = elapsed / 60
+            val secs = elapsed % 60
+            val timeStr = String.format(Locale.US, "%02d:%02d", mins, secs)
+            val coinsGained = gameEngine.coinsEarned
+            binding.tvTilesRemaining.text = "${gameEngine.remainingTilesCount} tiles left • ⏱ $timeStr • 🪙 +$coinsGained"
+
+            if (lastShownCoins != -1 && coinsGained > lastShownCoins) {
+                binding.tvTilesRemaining.animate()
+                    .scaleX(1.12f).scaleY(1.12f)
+                    .setDuration(120)
+                    .withEndAction {
+                        binding.tvTilesRemaining.animate().scaleX(1.0f).scaleY(1.0f).setDuration(140).start()
+                    }.start()
+            }
+            lastShownCoins = coinsGained
+        }
     }
 
     private fun updateStatsUI() {
         binding.tvGameCoins.text = prefs.coins.toString()
-        binding.tvScore.text = getString(R.string.score, gameEngine.score)
-        binding.tvTilesRemaining.text = "${gameEngine.remainingTilesCount} tiles left"
+        updateTimerDisplay()
 
         if (gameEngine.combo > 1) {
-            binding.tvCombo.visibility = View.VISIBLE
+            binding.llComboBanner.visibility = View.VISIBLE
             binding.tvCombo.text = getString(R.string.combo, gameEngine.combo)
-            binding.tvCombo.scaleX = 0.5f
-            binding.tvCombo.scaleY = 0.5f
-            binding.tvCombo.animate()
-                .scaleX(1.3f).scaleY(1.3f)
+            binding.llComboBanner.scaleX = 0.6f
+            binding.llComboBanner.scaleY = 0.6f
+            binding.llComboBanner.animate()
+                .scaleX(1.15f).scaleY(1.15f)
                 .setDuration(160)
                 .setInterpolator(OvershootInterpolator(2f))
                 .withEndAction {
-                    binding.tvCombo.animate().scaleX(1.0f).scaleY(1.0f).setDuration(120).start()
+                    binding.llComboBanner.animate().scaleX(1.0f).scaleY(1.0f).setDuration(120).start()
                 }.start()
         } else {
-            binding.tvCombo.visibility = View.GONE
+            binding.llComboBanner.visibility = View.GONE
         }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        soundManager.pauseBgm()
+        timerHandler.removeCallbacks(timerRunnable)
+        if (::gameEngine.isInitialized) {
+            gameEngine.onPause()
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        soundManager.resumeBgm()
+        if (::gameEngine.isInitialized) {
+            gameEngine.onResume()
+            timerHandler.post(timerRunnable)
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        timerHandler.removeCallbacks(timerRunnable)
     }
 
     private fun updateBoosterBadges() {
@@ -160,7 +220,7 @@ class GameActivity : AppCompatActivity() {
         }
     }
 
-    private fun handleTileTap(tile: Tile) {
+    private fun handleTileTap(tile: Tile, force: Boolean = false) {
         soundManager.playClick()
         soundManager.vibrate(30)
 
@@ -186,7 +246,7 @@ class GameActivity : AppCompatActivity() {
         val destRect = RectF(destX, destY, destX + slotBounds.width(), destY + slotBounds.height())
 
         // 3. Mark tile as collected in engine and run fly animation
-        when (val result = gameEngine.onTileTapped(tile)) {
+        when (val result = gameEngine.onTileTapped(tile, force)) {
             is GameEngine.TapResult.PlacedInDock -> {
                 binding.tileBoardView.invalidate()
                 binding.flyingTileOverlay.flyTile(tile, startRect, destRect) {
@@ -254,7 +314,7 @@ class GameActivity : AppCompatActivity() {
                     prefs.unlockNextLevel(currentLevelNum)
 
                     Handler(Looper.getMainLooper()).postDelayed({
-                        showVictoryDialog(result.finalScore, result.stars, result.coins)
+                        showVictoryDialog(result.finalScore, result.stars, result.coins, result.elapsedSeconds)
                     }, 400)
                 }
             }
@@ -291,29 +351,26 @@ class GameActivity : AppCompatActivity() {
             }.start()
 
         if (prefs.boosterUndo > 0) {
-            if (gameEngine.undo()) {
+            if (executeUndoBooster()) {
                 prefs.boosterUndo--
                 updateBoosterBadges()
-                soundManager.playUndo()
-                soundManager.vibrate(35)
-                binding.tileBoardView.invalidate()
-                binding.dockTrayView.setDockTiles(gameEngine.dockTiles)
-                updateStatsUI()
-            } else {
-                Toast.makeText(this, "Nothing to undo!", Toast.LENGTH_SHORT).show()
-            }
-        } else if (prefs.coins >= 50) {
-            if (gameEngine.undo()) {
-                prefs.coins -= 50
-                soundManager.playUndo()
-                soundManager.vibrate(35)
-                binding.tileBoardView.invalidate()
-                binding.dockTrayView.setDockTiles(gameEngine.dockTiles)
-                updateStatsUI()
             }
         } else {
-            soundManager.playAlert()
-            Toast.makeText(this, getString(R.string.not_enough_coins), Toast.LENGTH_SHORT).show()
+            showGetBoosterDialog(BoosterType.UNDO)
+        }
+    }
+
+    private fun executeUndoBooster(): Boolean {
+        if (gameEngine.undo()) {
+            soundManager.playUndo()
+            soundManager.vibrate(35)
+            binding.tileBoardView.invalidate()
+            binding.dockTrayView.setDockTiles(gameEngine.dockTiles)
+            updateStatsUI()
+            return true
+        } else {
+            Toast.makeText(this, "Nothing to undo!", Toast.LENGTH_SHORT).show()
+            return false
         }
     }
 
@@ -327,27 +384,26 @@ class GameActivity : AppCompatActivity() {
             }.start()
 
         if (prefs.boosterShuffle > 0) {
-            if (gameEngine.shuffle()) {
+            if (executeShuffleBooster()) {
                 prefs.boosterShuffle--
                 updateBoosterBadges()
-                soundManager.playShuffle()
-                soundManager.vibrate(40)
-                binding.tileBoardView.animateShuffle {
-                    updateStatsUI()
-                }
-            }
-        } else if (prefs.coins >= 50) {
-            if (gameEngine.shuffle()) {
-                prefs.coins -= 50
-                soundManager.playShuffle()
-                soundManager.vibrate(40)
-                binding.tileBoardView.animateShuffle {
-                    updateStatsUI()
-                }
             }
         } else {
-            soundManager.playAlert()
-            Toast.makeText(this, getString(R.string.not_enough_coins), Toast.LENGTH_SHORT).show()
+            showGetBoosterDialog(BoosterType.SHUFFLE)
+        }
+    }
+
+    private fun executeShuffleBooster(): Boolean {
+        if (gameEngine.shuffle()) {
+            soundManager.playShuffle()
+            soundManager.vibrate(40)
+            binding.tileBoardView.animateShuffle {
+                updateStatsUI()
+            }
+            return true
+        } else {
+            Toast.makeText(this, "Cannot shuffle now!", Toast.LENGTH_SHORT).show()
+            return false
         }
     }
 
@@ -359,30 +415,218 @@ class GameActivity : AppCompatActivity() {
                 binding.btnBoosterWand.animate().scaleX(1.0f).scaleY(1.0f).setDuration(140).start()
             }.start()
 
-        if (prefs.boosterWand > 0 || prefs.coins >= 50) {
-            val trio = gameEngine.findHintTrio()
-            if (trio != null) {
-                if (prefs.boosterWand > 0) {
-                    prefs.boosterWand--
-                } else {
-                    prefs.coins -= 50
-                }
-                updateBoosterBadges()
-                soundManager.playWand()
-                soundManager.vibrate(45)
-
-                binding.tileBoardView.highlightTiles(trio.map { it.id }.toSet())
-                updateStatsUI()
-            } else {
-                Toast.makeText(this, "No obvious matches found!", Toast.LENGTH_SHORT).show()
-            }
+        if (prefs.boosterWand > 0) {
+            prefs.boosterWand--
+            updateBoosterBadges()
+            executeHintBooster()
         } else {
-            soundManager.playAlert()
-            Toast.makeText(this, getString(R.string.not_enough_coins), Toast.LENGTH_SHORT).show()
+            showGetBoosterDialog(BoosterType.HINT)
         }
     }
 
-    private fun showVictoryDialog(finalScore: Int, stars: Int, coins: Int) {
+    private fun executeHintBooster() {
+        val boardTilesToCollect = gameEngine.findHintTrio()
+        if (boardTilesToCollect.isNullOrEmpty()) {
+            Toast.makeText(this, "No obvious matches found!", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        soundManager.playWand()
+        soundManager.vibrate(45)
+
+        val boardTileIds = boardTilesToCollect.map { it.id }.toSet()
+        binding.tileBoardView.highlightTiles(boardTileIds)
+
+        // Magic sparkle burst at each tile position
+        val overlayPos = IntArray(2)
+        binding.flyingTileOverlay.getLocationOnScreen(overlayPos)
+        val boardPos = IntArray(2)
+        binding.tileBoardView.getLocationOnScreen(boardPos)
+
+        for (tile in boardTilesToCollect) {
+            val r = binding.tileBoardView.getTilePositionOnScreen(tile)
+            val cx = boardPos[0] - overlayPos[0] + r.centerX()
+            val cy = boardPos[1] - overlayPos[1] + r.centerY()
+            binding.flyingTileOverlay.burstSparkles(cx, cy)
+        }
+
+        // Staggered animated collection into the dock (force unblocks tiles under layers)
+        for (i in boardTilesToCollect.indices) {
+            val tile = boardTilesToCollect[i]
+            binding.root.postDelayed({
+                if (!tile.isCollected && !isFinishing && !isDestroyed) {
+                    handleTileTap(tile, force = true)
+                }
+            }, (i * 240).toLong())
+        }
+    }
+
+    private fun showGetBoosterDialog(type: BoosterType) {
+        val dialogBinding = DialogGetBoosterBinding.inflate(LayoutInflater.from(this))
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogBinding.root)
+            .create()
+
+        dialog.window?.apply {
+            setBackgroundDrawableResource(android.R.color.transparent)
+            setWindowAnimations(R.style.DialogAnimation)
+        }
+
+        val name = when (type) {
+            BoosterType.UNDO -> "Undo"
+            BoosterType.SHUFFLE -> "Shuffle"
+            BoosterType.HINT -> "Hint"
+        }
+
+        val iconRes = when (type) {
+            BoosterType.UNDO -> R.drawable.ic_undo
+            BoosterType.SHUFFLE -> R.drawable.ic_shuffle
+            BoosterType.HINT -> R.drawable.ic_wand
+        }
+
+        dialogBinding.ivBoosterHeaderIcon.setImageResource(iconRes)
+        dialogBinding.tvBoosterTitle.text = "Need More $name?"
+        dialogBinding.tvBoosterSubtitle.text = "You have 0 $name left. Choose an option to get +1:"
+
+        val adsRemaining = when (type) {
+            BoosterType.UNDO -> prefs.adsRemainingUndo
+            BoosterType.SHUFFLE -> prefs.adsRemainingShuffle
+            BoosterType.HINT -> prefs.adsRemainingWand
+        }
+
+        dialogBinding.tvCoinsBalance.text = "Your balance: ${prefs.coins} Coins"
+
+        // Watch Ad Option
+        if (adsRemaining > 0) {
+            dialogBinding.tvWatchAdSubtitle.text = "Free • $adsRemaining / 5 left today"
+            dialogBinding.tvWatchAdSubtitle.setTextColor(Color.parseColor("#10B981"))
+            dialogBinding.tvAdActionBadge.text = "FREE"
+            dialogBinding.tvAdActionBadge.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#10B981"))
+            dialogBinding.btnOptionWatchAd.alpha = 1.0f
+            dialogBinding.btnOptionWatchAd.setOnClickListener {
+                dialog.dismiss()
+                showWatchAdSimulation(type)
+            }
+        } else {
+            dialogBinding.tvWatchAdSubtitle.text = "Daily limit reached (0 / 5 left)"
+            dialogBinding.tvWatchAdSubtitle.setTextColor(Color.parseColor("#94A3B8"))
+            dialogBinding.tvAdActionBadge.text = "LIMIT"
+            dialogBinding.tvAdActionBadge.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#64748B"))
+            dialogBinding.btnOptionWatchAd.alpha = 0.6f
+            dialogBinding.btnOptionWatchAd.setOnClickListener {
+                soundManager.playAlert()
+                Toast.makeText(this, "Daily video ad limit reached for $name (5/5 used today)!", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        // Coins Option (200 Coins)
+        dialogBinding.btnOptionCoins.setOnClickListener {
+            if (prefs.coins >= 200) {
+                prefs.coins -= 200
+                updateStatsUI()
+                dialog.dismiss()
+                soundManager.playButton()
+                soundManager.vibrate(30)
+                Toast.makeText(this, "Used 200 Coins for +1 $name!", Toast.LENGTH_SHORT).show()
+                executeBoosterAfterReplenish(type)
+            } else {
+                soundManager.playAlert()
+                soundManager.vibrate(25)
+                Toast.makeText(this, "Not enough coins! You need 200 coins.", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        dialogBinding.btnCloseGetBooster.setOnClickListener {
+            soundManager.playButton()
+            dialog.dismiss()
+        }
+
+        dialog.show()
+        val dialogWidth = (resources.displayMetrics.widthPixels * 0.90f).toInt()
+        dialog.window?.setLayout(dialogWidth, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
+    }
+
+    private fun showWatchAdSimulation(type: BoosterType) {
+        val name = when (type) {
+            BoosterType.UNDO -> "Undo"
+            BoosterType.SHUFFLE -> "Shuffle"
+            BoosterType.HINT -> "Hint"
+        }
+
+        fun grantReward() {
+            when (type) {
+                BoosterType.UNDO -> prefs.adsRemainingUndo--
+                BoosterType.SHUFFLE -> prefs.adsRemainingShuffle--
+                BoosterType.HINT -> prefs.adsRemainingWand--
+            }
+            soundManager.playMatch()
+            soundManager.vibrate(50)
+            Toast.makeText(this@GameActivity, "Ad watched! +1 $name granted!", Toast.LENGTH_SHORT).show()
+            executeBoosterAfterReplenish(type)
+        }
+
+        AdMobManager.getInstance(this).showRewardedBoosterAd(
+            activity = this,
+            onRewardEarned = {
+                grantReward()
+            },
+            onAdClosed = {
+                // Ad closed
+            },
+            onFallbackSimulation = {
+                runFallbackAdDialog(name) {
+                    grantReward()
+                }
+            }
+        )
+    }
+
+    private fun runFallbackAdDialog(name: String, onFinished: () -> Unit) {
+        val adBinding = DialogWatchAdBinding.inflate(LayoutInflater.from(this))
+        val adDialog = AlertDialog.Builder(this)
+            .setView(adBinding.root)
+            .setCancelable(false)
+            .create()
+
+        adDialog.window?.apply {
+            setBackgroundDrawableResource(android.R.color.transparent)
+            setWindowAnimations(R.style.DialogAnimation)
+        }
+
+        adBinding.tvAdHeading.text = "Watching Video Ad for $name"
+        adDialog.show()
+        val dialogWidth = (resources.displayMetrics.widthPixels * 0.85f).toInt()
+        adDialog.window?.setLayout(dialogWidth, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
+
+        val anim = ValueAnimator.ofInt(0, 100).apply {
+            duration = 2000
+            addUpdateListener {
+                val progress = it.animatedValue as Int
+                adBinding.pbAdProgress.progress = progress
+                val remainingSec = ((100 - progress) * 2 / 100.0).coerceAtLeast(0.0)
+                adBinding.tvAdCountdown.text = String.format(Locale.US, "Reward in %.1fs", remainingSec)
+            }
+            doOnEnd {
+                if (!isFinishing && !isDestroyed) {
+                    adDialog.dismiss()
+                    onFinished()
+                }
+            }
+        }
+        anim.start()
+    }
+
+    private fun executeBoosterAfterReplenish(type: BoosterType) {
+        when (type) {
+            BoosterType.UNDO -> executeUndoBooster()
+            BoosterType.SHUFFLE -> executeShuffleBooster()
+            BoosterType.HINT -> executeHintBooster()
+        }
+        updateBoosterBadges()
+        updateStatsUI()
+    }
+
+    private fun showVictoryDialog(finalScore: Int, stars: Int, coins: Int, elapsedSeconds: Long) {
         val dialogBinding = DialogVictoryBinding.inflate(LayoutInflater.from(this))
         val dialog = AlertDialog.Builder(this)
             .setView(dialogBinding.root)
@@ -394,8 +638,16 @@ class GameActivity : AppCompatActivity() {
             setWindowAnimations(R.style.DialogAnimation)
         }
 
-        dialogBinding.tvVicScore.text = "Final Score: 0"
         dialogBinding.tvVicCoins.text = "+$coins Coins"
+
+        val mins = elapsedSeconds / 60
+        val secs = elapsedSeconds % 60
+        val timeLabel = when (stars) {
+            3 -> "(⭐⭐⭐ Under 2 mins)"
+            2 -> "(⭐⭐ Under 6 mins)"
+            else -> "(⭐ Over 6 mins)"
+        }
+        dialogBinding.tvVicTime.text = String.format(Locale.US, "Time: %02d:%02d  %s", mins, secs, timeLabel)
 
         // Star views
         val gold = ContextCompat.getColor(this, R.color.accent_gold)
@@ -410,15 +662,6 @@ class GameActivity : AppCompatActivity() {
         dialogBinding.ivVicStar2.scaleY = 0f
         dialogBinding.ivVicStar3.scaleX = 0f
         dialogBinding.ivVicStar3.scaleY = 0f
-
-        // Animated Score Counter
-        val scoreAnim = ValueAnimator.ofInt(0, finalScore).apply {
-            duration = 800
-            addUpdateListener {
-                dialogBinding.tvVicScore.text = "Final Score: ${it.animatedValue}"
-            }
-        }
-        scoreAnim.start()
 
         // Trophy bounce animation
         dialogBinding.ivVictoryTrophy.animate()
@@ -446,14 +689,29 @@ class GameActivity : AppCompatActivity() {
             }, (250 + i * 280).toLong())
         }
 
+        // Show interstitial ad only every 3 levels completed
+        prefs.completedLevelsCount++
+        val shouldShowAd = !prefs.isAdRemoved && (prefs.completedLevelsCount % 3 == 0)
+
         dialogBinding.btnVicNextLevel.setOnClickListener {
             dialog.dismiss()
             soundManager.playButton()
-            if (currentLevelNum < 1000) {
-                currentLevelNum++
-                setupGame()
+
+            fun proceed() {
+                if (currentLevelNum < 1000) {
+                    currentLevelNum++
+                    setupGame()
+                } else {
+                    finish()
+                }
+            }
+
+            if (shouldShowAd) {
+                AdMobManager.getInstance(this).showInterstitialAd(this) {
+                    proceed()
+                }
             } else {
-                finish()
+                proceed()
             }
         }
 
@@ -524,6 +782,9 @@ class GameActivity : AppCompatActivity() {
     }
 
     private fun showPauseDialog() {
+        if (::gameEngine.isInitialized) {
+            gameEngine.onPause()
+        }
         val dialogBinding = DialogPauseBinding.inflate(LayoutInflater.from(this))
         val dialog = AlertDialog.Builder(this)
             .setView(dialogBinding.root)
@@ -532,6 +793,12 @@ class GameActivity : AppCompatActivity() {
         dialog.window?.apply {
             setBackgroundDrawableResource(android.R.color.transparent)
             setWindowAnimations(R.style.DialogAnimation)
+        }
+
+        dialog.setOnDismissListener {
+            if (::gameEngine.isInitialized) {
+                gameEngine.onResume()
+            }
         }
 
         dialogBinding.btnPauseResume.setOnClickListener {

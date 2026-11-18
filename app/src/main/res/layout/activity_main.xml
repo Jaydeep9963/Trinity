@@ -45,7 +45,7 @@
                 android:fontFamily="sans-serif-bold"
                 android:textColor="@color/text_light"
                 android:textSize="15sp"
-                tools:text="500" />
+                tools:text="0" />
         </LinearLayout>
 
         <!-- Top Right Controls: Skin + Theme + Sound + Settings with Square Cards -->
@@ -150,7 +150,7 @@
         android:clipToPadding="false"
         android:gravity="center"
         android:orientation="vertical"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/bannerAdContainer"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent">
 
@@ -289,6 +289,7 @@
                     android:src="@drawable/ic_coin" />
 
                 <TextView
+                    android:id="@+id/tvDailyGiftText"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="8dp"
@@ -300,5 +301,24 @@
         </FrameLayout>
 
     </LinearLayout>
+
+    <!-- Bottom Banner Ad Container -->
+    <FrameLayout
+        android:id="@+id/bannerAdContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="4dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <com.google.android.gms.ads.AdView
+            android:id="@+id/adViewMain"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            app:adSize="BANNER"
+            app:adUnitId="@string/admob_banner_ad_id" />
+    </FrameLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

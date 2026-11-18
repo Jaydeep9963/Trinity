@@ -31,6 +31,10 @@ replay_pid*
 *.apks
 *.aab
 
+# Keystore & Signing files
+*.jks
+*.keystore
+
 # Gradle & Build files
 .gradle/
 build/
