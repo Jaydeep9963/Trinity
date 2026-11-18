@@ -46,7 +46,12 @@ class DockTrayView @JvmOverloads constructor(
     }
     private val matchGlowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
-        color = Color.parseColor("#80FFD700")
+        color = Color.parseColor("#FFFFD700")
+    }
+    private val pairGlowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 3.5f
+        color = Color.parseColor("#00E5FF")
     }
 
     private val trayBounds = RectF()
@@ -56,9 +61,26 @@ class DockTrayView @JvmOverloads constructor(
     private val itemTextPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val itemShadowPaint = Paint(Paint.ANTI_ALIAS_FLAG)
 
-    // Flash/Match animation
+    // Flash/Match-3 animation
     private var matchingIndices: Set<Int> = emptySet()
     private var matchAnimScale: Float = 1.0f
+    private var matchAnimOffsetY: Float = 0f
+    private var matchAnimRotation: Float = 0f
+    private var matchClashShift: Float = 0f
+    private var matchGlowAlpha: Int = 0
+    private var matchWhiteFlashAlpha: Int = 0
+    private val whiteFlashPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.WHITE
+        style = Paint.Style.FILL
+    }
+
+    // Pair Formed animation
+    private var pairIndices: List<Int> = emptyList()
+    private var pairScale: Float = 1.0f
+    private var pairTilt: Float = 0f
+    private var pairClashShift: Float = 0f
+    private var pairGlowAlpha: Int = 0
+    private var pairAnimator: ValueAnimator? = null
 
     // Newly inserted slot bounce animation
     private var newlyInsertedIndex: Int? = null
@@ -123,13 +145,117 @@ class DockTrayView @JvmOverloads constructor(
         }
     }
 
-    fun animateMatch(indices: Set<Int>, onEnd: () -> Unit) {
+    /**
+     * Distinct clash animation when 2nd matching tile is added:
+     * - Physical clash: both tiles bump together laterally at the seam (+/- 7.5px)
+     * - Satisfying elastic spring bounce back to position
+     * - Tilt toward each other like magnetic attraction (+/- 5.5 deg)
+     * - Luminous theme aura (e.g. ruby red for rose) pulses around both tiles!
+     */
+    fun animatePairFormed(indices: List<Int>, themeColor: Int = Color.parseColor("#00E5FF")) {
+        if (indices.size < 2) return
+        val dp = resources.displayMetrics.density
+        pairAnimator?.cancel()
+        pairIndices = indices
+        pairGlowPaint.color = themeColor
+
+        pairAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = 350
+            interpolator = android.view.animation.DecelerateInterpolator()
+            addUpdateListener { va ->
+                val f = va.animatedValue as Float
+                // Physical clash shift (bump towards each other at f=0.25, then spring back)
+                pairClashShift = if (f < 0.25f) {
+                    (f / 0.25f) * 8.5f * dp
+                } else {
+                    val t = (f - 0.25f) / 0.75f
+                    8.5f * dp * (1.0f - t) * kotlin.math.cos(t * Math.PI * 2.5).toFloat()
+                }
+
+                // Scale pulse: 1.0 -> 1.22 at impact (f=0.28) -> 1.0
+                pairScale = if (f < 0.28f) {
+                    1.0f + (f / 0.28f) * 0.22f
+                } else {
+                    1.22f - ((f - 0.28f) / 0.72f) * 0.22f
+                }
+
+                // Tilt toward each other: 0 -> 6 deg -> 0
+                pairTilt = if (f < 0.28f) {
+                    (f / 0.28f) * 6.0f
+                } else {
+                    (1.0f - ((f - 0.28f) / 0.72f)) * 6.0f
+                }
+
+                // Themed glow alpha: flares up to 235 at clash impact, then dissolves smoothly
+                pairGlowAlpha = if (f < 0.25f) {
+                    ((f / 0.25f) * 235).toInt()
+                } else {
+                    ((1.0f - ((f - 0.25f) / 0.75f)) * 235).toInt().coerceIn(0, 255)
+                }
+
+                invalidate()
+            }
+            addListener(object : android.animation.AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: android.animation.Animator) {
+                    pairIndices = emptyList()
+                    pairScale = 1.0f
+                    pairTilt = 0f
+                    pairClashShift = 0f
+                    pairGlowAlpha = 0
+                    invalidate()
+                }
+            })
+            start()
+        }
+    }
+
+    /**
+     * Attention-Grabbing Grand Celebration when 3rd matching tile is added:
+     * - Stage 1 (0 to 42%): Massive jump up (-22dp) and clash inward with white energy flash!
+     * - Physical tray punch vibration
+     * - Stage 2 (42% to 100%): Radiant theme-colored burst with intense halo, dissolved and shrunk to 0 as remaining tiles slide in.
+     */
+    fun animateMatch(indices: Set<Int>, themeColor: Int = Color.parseColor("#FFFFD700"), onEnd: () -> Unit) {
         matchingIndices = indices
-        val anim = ValueAnimator.ofFloat(1.0f, 1.35f, 0.0f).apply {
-            duration = 260
-            interpolator = OvershootInterpolator()
-            addUpdateListener {
-                matchAnimScale = it.animatedValue as Float
+        matchGlowPaint.color = themeColor
+        val dp = resources.displayMetrics.density
+
+        // Tray physical punch-shake
+        animate().cancel()
+        animate()
+            .translationY(dp * 5f)
+            .setDuration(45)
+            .withEndAction {
+                animate()
+                    .translationY(-dp * 4f)
+                    .setDuration(45)
+                    .withEndAction {
+                        animate().translationY(0f).setDuration(60).start()
+                    }.start()
+            }.start()
+
+        val anim = ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = 420
+            interpolator = android.view.animation.AccelerateDecelerateInterpolator()
+            addUpdateListener { va ->
+                val f = va.animatedValue as Float
+                if (f < 0.42f) {
+                    val t = f / 0.42f
+                    matchAnimScale = 1.0f + t * 0.35f
+                    matchAnimOffsetY = -22f * dp * t
+                    matchAnimRotation = 9.0f * t
+                    matchClashShift = 8.0f * dp * t
+                    matchGlowAlpha = (t * 255).toInt().coerceIn(0, 255)
+                    matchWhiteFlashAlpha = ((1.0f - t) * 220).toInt().coerceIn(0, 255)
+                } else {
+                    val t = (f - 0.42f) / 0.58f
+                    matchAnimScale = (1.35f * (1.0f - t)).coerceAtLeast(0f)
+                    matchAnimOffsetY = -22f * dp * (1.0f - t)
+                    matchAnimRotation = 9.0f * (1.0f - t)
+                    matchClashShift = 8.0f * dp * (1.0f - t)
+                    matchGlowAlpha = ((1.0f - t) * 255).toInt().coerceIn(0, 255)
+                    matchWhiteFlashAlpha = 0
+                }
                 invalidate()
             }
         }
@@ -137,6 +263,11 @@ class DockTrayView @JvmOverloads constructor(
             override fun onAnimationEnd(animation: android.animation.Animator) {
                 matchingIndices = emptySet()
                 matchAnimScale = 1.0f
+                matchAnimOffsetY = 0f
+                matchAnimRotation = 0f
+                matchClashShift = 0f
+                matchGlowAlpha = 0
+                matchWhiteFlashAlpha = 0
                 onEnd()
             }
         })
@@ -206,6 +337,8 @@ class DockTrayView @JvmOverloads constructor(
         val startY = trayBounds.top + 8f
 
         val slotCorner = 12f
+        val sortedMatching = matchingIndices.sorted()
+
         for (i in 0 until maxSlots) {
             val sx = startX + i * (slotW + slotSpacing)
             slotBounds.set(sx, startY, sx + slotW, startY + slotH)
@@ -216,24 +349,72 @@ class DockTrayView @JvmOverloads constructor(
             if (i < tiles.size) {
                 val tile = tiles[i]
                 val isMatching = matchingIndices.contains(i)
+                val isPair = pairIndices.contains(i)
                 val isNewlyInserted = (i == newlyInsertedIndex)
 
                 val scale = when {
                     isMatching -> matchAnimScale
+                    isPair -> pairScale
                     isNewlyInserted -> insertBounceScale
                     else -> 1.0f
                 }
 
-                canvas.save()
-                if (scale != 1.0f) {
-                    val cx = slotBounds.centerX()
-                    val cy = slotBounds.centerY()
-                    canvas.scale(scale, scale, cx, cy)
+                val offsetX = when {
+                    isPair && pairIndices.size >= 2 -> {
+                        if (i == pairIndices.first()) pairClashShift else -pairClashShift
+                    }
+                    isMatching && sortedMatching.size == 3 -> {
+                        when (i) {
+                            sortedMatching[0] -> matchClashShift
+                            sortedMatching[1] -> 0f
+                            sortedMatching[2] -> -matchClashShift
+                            else -> 0f
+                        }
+                    }
+                    else -> 0f
+                }
+                val offsetY = if (isMatching) matchAnimOffsetY else 0f
+
+                val rotation = when {
+                    isMatching && sortedMatching.size == 3 -> {
+                        when (i) {
+                            sortedMatching[0] -> -matchAnimRotation
+                            sortedMatching[1] -> 0f
+                            sortedMatching[2] -> matchAnimRotation
+                            else -> 0f
+                        }
+                    }
+                    isPair && pairIndices.size >= 2 -> {
+                        if (i == pairIndices.first()) pairTilt else -pairTilt
+                    }
+                    else -> 0f
                 }
 
-                // Match glow halo
-                if (isMatching) {
-                    canvas.drawRoundRect(slotBounds, slotCorner, slotCorner, matchGlowPaint)
+                canvas.save()
+                val cx = slotBounds.centerX()
+                val cy = slotBounds.centerY()
+
+                canvas.translate(offsetX, offsetY)
+                if (scale != 1.0f) {
+                    canvas.scale(scale, scale, cx, cy)
+                }
+                if (rotation != 0f) {
+                    canvas.rotate(rotation, cx, cy)
+                }
+
+                val dp = resources.displayMetrics.density
+                // Match celebration glow halo
+                if (isMatching && matchGlowAlpha > 0) {
+                    matchGlowPaint.alpha = matchGlowAlpha
+                    val glowBounds = RectF(slotBounds.left - 6f * dp, slotBounds.top - 6f * dp, slotBounds.right + 6f * dp, slotBounds.bottom + 6f * dp)
+                    canvas.drawRoundRect(glowBounds, slotCorner + 6f * dp, slotCorner + 6f * dp, matchGlowPaint)
+                }
+
+                // Pair connection glow aura
+                if (isPair && pairGlowAlpha > 0) {
+                    pairGlowPaint.alpha = pairGlowAlpha
+                    val pairBounds = RectF(slotBounds.left - 3f * dp, slotBounds.top - 3f * dp, slotBounds.right + 3f * dp, slotBounds.bottom + 3f * dp)
+                    canvas.drawRoundRect(pairBounds, slotCorner + 3f * dp, slotCorner + 3f * dp, pairGlowPaint)
                 }
 
                 // Draw Tile Base Bevel
@@ -247,6 +428,12 @@ class DockTrayView @JvmOverloads constructor(
                 // Draw Tile Item Emoji (Sortora Style)
                 val emoji = ItemSkinManager.getEmojiForType(context, tile.type)
                 PieceRenderer.drawTileItem(canvas, emoji, faceBounds, itemTextPaint, itemShadowPaint)
+
+                // Luminous white radiant energy flash on match
+                if (isMatching && matchWhiteFlashAlpha > 0) {
+                    whiteFlashPaint.alpha = matchWhiteFlashAlpha
+                    canvas.drawRoundRect(faceBounds, slotCorner, slotCorner, whiteFlashPaint)
+                }
 
                 canvas.restore()
             }

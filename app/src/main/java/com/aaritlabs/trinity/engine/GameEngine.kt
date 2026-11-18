@@ -53,7 +53,15 @@ class GameEngine(val levelConfig: LevelConfig) {
     sealed class TapResult {
         object Ignored : TapResult()
         data class PlacedInDock(val tile: Tile, val dockIndex: Int) : TapResult()
-        data class Matched(val matchedType: TileType, val clearedTiles: List<Tile>, val newCombo: Int, val points: Int) : TapResult()
+        data class PairFormed(val tile: Tile, val dockIndex: Int, val pairIndices: List<Int>) : TapResult()
+        data class Matched(
+            val matchedType: TileType,
+            val clearedTiles: List<Tile>,
+            val trioIndices: List<Int>,
+            val newCombo: Int,
+            val points: Int,
+            val isVictory: Boolean
+        ) : TapResult()
         data class GameOver(val fullDock: List<Tile>) : TapResult()
         data class Victory(val finalScore: Int, val stars: Int, val coins: Int, val elapsedSeconds: Long) : TapResult()
     }
@@ -71,6 +79,19 @@ class GameEngine(val levelConfig: LevelConfig) {
         return true
     }
 
+    /**
+     * Determines the exact dock slot index where a newly tapped tile will be inserted
+     * so that matching tiles are grouped side-by-side.
+     */
+    fun getInsertIndexFor(tile: Tile): Int {
+        val lastMatchingIndex = dockTiles.indexOfLast { it.type == tile.type }
+        return if (lastMatchingIndex != -1) {
+            lastMatchingIndex + 1
+        } else {
+            dockTiles.size
+        }
+    }
+
     fun onTileTapped(tile: Tile, force: Boolean = false): TapResult {
         if (!force && !canTap(tile)) return TapResult.Ignored
         if (tile.isCollected || dockTiles.size >= maxDockCapacity) return TapResult.Ignored
@@ -79,21 +100,22 @@ class GameEngine(val levelConfig: LevelConfig) {
         LevelGenerator.updateBlockages(allTiles)
 
         // Find smart insert position in dock (grouping matching tiles together)
-        val lastMatchingIndex = dockTiles.indexOfLast { it.type == tile.type }
-        val insertIndex = if (lastMatchingIndex != -1) {
-            lastMatchingIndex + 1
-        } else {
-            dockTiles.size
-        }
-
+        val insertIndex = getInsertIndexFor(tile)
         dockTiles.add(insertIndex, tile)
         moveHistory.push(MoveRecord(tile, insertIndex))
 
+        // Find all indices of this tile type currently in dock
+        val matchingIndices = mutableListOf<Int>()
+        for (i in dockTiles.indices) {
+            if (dockTiles[i].type == tile.type) {
+                matchingIndices.add(i)
+            }
+        }
+
         // Check for match-3
-        val matchingGroup = dockTiles.filter { it.type == tile.type }
-        if (matchingGroup.size >= 3) {
-            val trio = matchingGroup.take(3)
-            dockTiles.removeAll(trio)
+        if (matchingIndices.size >= 3) {
+            val trioIndices = matchingIndices.take(3)
+            val trio = trioIndices.map { dockTiles[it] }
 
             // Consecutive matching of the SAME tile type increases combo!
             if (lastMatchedType == tile.type) {
@@ -108,14 +130,26 @@ class GameEngine(val levelConfig: LevelConfig) {
             score += points
             coinsEarned += coins
 
-            // Check if game won
-            if (remainingTilesCount == 0 && dockTiles.isEmpty()) {
-                val timeSec = elapsedSeconds
-                val stars = calculateStars(timeSec)
-                return TapResult.Victory(score, stars, coinsEarned, timeSec)
-            }
+            // Check if this match clears the board and dock completely (after removing trio)
+            val isVictory = (remainingTilesCount == 0 && (dockTiles.size - 3) == 0)
 
-            return TapResult.Matched(tile.type, trio, combo, points)
+            return TapResult.Matched(
+                matchedType = tile.type,
+                clearedTiles = trio,
+                trioIndices = trioIndices,
+                newCombo = combo,
+                points = points,
+                isVictory = isVictory
+            )
+        }
+
+        // Check if a pair (2 tiles of the same type) was formed
+        if (matchingIndices.size == 2) {
+            return TapResult.PairFormed(
+                tile = tile,
+                dockIndex = insertIndex,
+                pairIndices = matchingIndices
+            )
         }
 
         // Check if tray is full (Game Over)
@@ -126,6 +160,16 @@ class GameEngine(val levelConfig: LevelConfig) {
         }
 
         return TapResult.PlacedInDock(tile, insertIndex)
+    }
+
+    fun removeMatchedTrio(trio: List<Tile>) {
+        dockTiles.removeAll(trio)
+    }
+
+    fun getVictoryData(): TapResult.Victory {
+        val timeSec = elapsedSeconds
+        val stars = calculateStars(timeSec)
+        return TapResult.Victory(score, stars, coinsEarned, timeSec)
     }
 
     fun undo(): Boolean {

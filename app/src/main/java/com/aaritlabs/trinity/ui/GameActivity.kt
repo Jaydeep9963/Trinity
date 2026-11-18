@@ -48,6 +48,7 @@ class GameActivity : AppCompatActivity() {
 
     private var currentLevelNum = 1
     private lateinit var gameEngine: GameEngine
+    private var isMatchAnimating = false
 
     private val timerHandler = Handler(Looper.getMainLooper())
     private val timerRunnable = object : Runnable {
@@ -221,6 +222,8 @@ class GameActivity : AppCompatActivity() {
     }
 
     private fun handleTileTap(tile: Tile, force: Boolean = false) {
+        if (!force && isMatchAnimating) return
+
         soundManager.playClick()
         soundManager.vibrate(30)
 
@@ -236,8 +239,8 @@ class GameActivity : AppCompatActivity() {
         val startY = boardPos[1] - overlayPos[1] + tileBoardRect.top
         val startRect = RectF(startX, startY, startX + tileBoardRect.width(), startY + tileBoardRect.height())
 
-        // 2. Determine target slot in dock
-        val targetSlotIndex = gameEngine.dockTiles.size.coerceIn(0, binding.dockTrayView.maxSlots - 1)
+        // 2. Determine target slot in dock (grouping matching tiles together)
+        val targetSlotIndex = gameEngine.getInsertIndexFor(tile).coerceIn(0, binding.dockTrayView.maxSlots - 1)
         val dockPos = IntArray(2)
         binding.dockTrayView.getLocationOnScreen(dockPos)
         val slotBounds = binding.dockTrayView.getSlotBounds(targetSlotIndex)
@@ -259,26 +262,53 @@ class GameActivity : AppCompatActivity() {
                 }
             }
 
-            is GameEngine.TapResult.Matched -> {
+            is GameEngine.TapResult.PairFormed -> {
                 binding.tileBoardView.invalidate()
                 binding.flyingTileOverlay.flyTile(tile, startRect, destRect) {
-                    // Find indices of matching trio in dock
-                    val matchedIndices = mutableSetOf<Int>()
-                    for (i in gameEngine.dockTiles.indices) {
-                        if (gameEngine.dockTiles[i].type == result.matchedType) {
-                            matchedIndices.add(i)
-                        }
+                    // Update tray with pair inserted
+                    binding.dockTrayView.setDockTiles(gameEngine.dockTiles)
+                    val primaryColor = com.aaritlabs.trinity.model.TileThemeHelper.getPrimaryColor(result.tile.type)
+                    // Distinct 2-tile magnetic clash, tilt & pulse animation with themed aura
+                    binding.dockTrayView.animatePairFormed(result.pairIndices, primaryColor)
+
+                    // Explosive clash: shockwave ring + themed 4-point sparkle stars
+                    if (result.pairIndices.size >= 2) {
+                        val center1 = binding.dockTrayView.getSlotScreenCenter(result.pairIndices[0])
+                        val center2 = binding.dockTrayView.getSlotScreenCenter(result.pairIndices[1])
+                        val seamX = dockPos[0] - overlayPos[0] + (center1.x + center2.x) / 2f
+                        val seamY = dockPos[1] - overlayPos[1] + (center1.y + center2.y) / 2f
+                        binding.flyingTileOverlay.burstPairClash(seamX, seamY, result.tile.type)
                     }
 
-                    // Animate match flash & sparkle burst
-                    val slotCenter = binding.dockTrayView.getSlotScreenCenter(targetSlotIndex)
+                    soundManager.playClick()
+                    soundManager.vibrate(35)
+                    updateStatsUI()
+
+                    if (gameEngine.dockTiles.size >= gameEngine.maxDockCapacity - 1) {
+                        soundManager.playAlert()
+                    }
+                }
+            }
+
+            is GameEngine.TapResult.Matched -> {
+                isMatchAnimating = true
+                binding.tileBoardView.invalidate()
+                binding.flyingTileOverlay.flyTile(tile, startRect, destRect) {
+                    // Display dock with all 3 tiles of the trio visible side-by-side
+                    binding.dockTrayView.setDockTiles(gameEngine.dockTiles)
+
+                    val centerSlotIndex = if (result.trioIndices.isNotEmpty()) {
+                        result.trioIndices[result.trioIndices.size / 2]
+                    } else {
+                        targetSlotIndex
+                    }
+                    val slotCenter = binding.dockTrayView.getSlotScreenCenter(centerSlotIndex)
                     val burstX = dockPos[0] - overlayPos[0] + slotCenter.x
                     val burstY = dockPos[1] - overlayPos[1] + slotCenter.y
-                    binding.flyingTileOverlay.burstSparkles(burstX, burstY)
 
-                    binding.dockTrayView.animateMatch(matchedIndices) {
-                        binding.dockTrayView.setDockTiles(gameEngine.dockTiles)
-                    }
+                    val primaryColor = com.aaritlabs.trinity.model.TileThemeHelper.getPrimaryColor(result.matchedType)
+                    // Grand celebration: Sunburst nova + double shockwaves + giant sparkle stars + floating score!
+                    binding.flyingTileOverlay.burstMatchClash(burstX, burstY, result.matchedType, result.newCombo, result.points)
 
                     if (result.newCombo > 1) {
                         soundManager.playCombo()
@@ -286,6 +316,18 @@ class GameActivity : AppCompatActivity() {
                     } else {
                         soundManager.playMatch()
                         soundManager.vibrate(40)
+                    }
+
+                    // Distinct 3-tile celebration & blast animation with themed aura
+                    binding.dockTrayView.animateMatch(result.trioIndices.toSet(), primaryColor) {
+                        gameEngine.removeMatchedTrio(result.clearedTiles)
+                        binding.dockTrayView.setDockTiles(gameEngine.dockTiles)
+                        isMatchAnimating = false
+                        updateStatsUI()
+
+                        if (result.isVictory) {
+                            handleVictorySequence(gameEngine.getVictoryData())
+                        }
                     }
 
                     updateStatsUI()
@@ -297,25 +339,7 @@ class GameActivity : AppCompatActivity() {
                 binding.flyingTileOverlay.flyTile(tile, startRect, destRect) {
                     binding.dockTrayView.setDockTiles(gameEngine.dockTiles)
                     updateStatsUI()
-
-                    soundManager.playWin()
-                    soundManager.vibrate(100)
-
-                    // Sparkle celebration
-                    val cx = binding.flyingTileOverlay.width / 2f
-                    val cy = binding.flyingTileOverlay.height / 2f
-                    binding.flyingTileOverlay.burstSparkles(cx, cy)
-                    binding.flyingTileOverlay.burstSparkles(cx - 100f, cy + 60f)
-                    binding.flyingTileOverlay.burstSparkles(cx + 100f, cy + 60f)
-
-                    // Save progression
-                    prefs.coins += result.coins
-                    prefs.setStarsForLevel(currentLevelNum, result.stars)
-                    prefs.unlockNextLevel(currentLevelNum)
-
-                    Handler(Looper.getMainLooper()).postDelayed({
-                        showVictoryDialog(result.finalScore, result.stars, result.coins, result.elapsedSeconds)
-                    }, 400)
+                    handleVictorySequence(result)
                 }
             }
 
@@ -339,6 +363,27 @@ class GameActivity : AppCompatActivity() {
                 soundManager.vibrate(25)
             }
         }
+    }
+
+    private fun handleVictorySequence(result: GameEngine.TapResult.Victory) {
+        soundManager.playWin()
+        soundManager.vibrate(100)
+
+        // Sparkle celebration
+        val cx = binding.flyingTileOverlay.width / 2f
+        val cy = binding.flyingTileOverlay.height / 2f
+        binding.flyingTileOverlay.burstSparkles(cx, cy)
+        binding.flyingTileOverlay.burstSparkles(cx - 100f, cy + 60f)
+        binding.flyingTileOverlay.burstSparkles(cx + 100f, cy + 60f)
+
+        // Save progression
+        prefs.coins += result.coins
+        prefs.setStarsForLevel(currentLevelNum, result.stars)
+        prefs.unlockNextLevel(currentLevelNum)
+
+        Handler(Looper.getMainLooper()).postDelayed({
+            showVictoryDialog(result.finalScore, result.stars, result.coins, result.elapsedSeconds)
+        }, 400)
     }
 
     private fun handleUndoBooster() {
