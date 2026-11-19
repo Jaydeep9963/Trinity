@@ -62,7 +62,7 @@ class GameEngine(val levelConfig: LevelConfig) {
             val points: Int,
             val isVictory: Boolean
         ) : TapResult()
-        data class GameOver(val fullDock: List<Tile>) : TapResult()
+        data class GameOver(val fullDock: List<Tile>, val pairIndices: List<Int>? = null) : TapResult()
         data class Victory(val finalScore: Int, val stars: Int, val coins: Int, val elapsedSeconds: Long) : TapResult()
     }
 
@@ -143,6 +143,14 @@ class GameEngine(val levelConfig: LevelConfig) {
             )
         }
 
+        // Check if tray is full (Game Over / Overloaded)
+        if (dockTiles.size >= maxDockCapacity) {
+            combo = 0
+            lastMatchedType = null
+            val pairIndices = if (matchingIndices.size == 2) matchingIndices else null
+            return TapResult.GameOver(dockTiles.toList(), pairIndices)
+        }
+
         // Check if a pair (2 tiles of the same type) was formed
         if (matchingIndices.size == 2) {
             return TapResult.PairFormed(
@@ -150,13 +158,6 @@ class GameEngine(val levelConfig: LevelConfig) {
                 dockIndex = insertIndex,
                 pairIndices = matchingIndices
             )
-        }
-
-        // Check if tray is full (Game Over)
-        if (dockTiles.size >= maxDockCapacity) {
-            combo = 0
-            lastMatchedType = null
-            return TapResult.GameOver(dockTiles.toList())
         }
 
         return TapResult.PlacedInDock(tile, insertIndex)

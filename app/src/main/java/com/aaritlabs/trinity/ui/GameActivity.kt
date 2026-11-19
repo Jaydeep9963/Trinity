@@ -49,6 +49,7 @@ class GameActivity : AppCompatActivity() {
     private var currentLevelNum = 1
     private lateinit var gameEngine: GameEngine
     private var isMatchAnimating = false
+    private var isDefeatDialogShowing = false
 
     private val timerHandler = Handler(Looper.getMainLooper())
     private val timerRunnable = object : Runnable {
@@ -105,6 +106,8 @@ class GameActivity : AppCompatActivity() {
     private var lastShownCoins = -1
 
     private fun setupGame() {
+        isDefeatDialogShowing = false
+        isMatchAnimating = false
         val levelConfig = LevelGenerator.generateLevel(currentLevelNum)
         gameEngine = GameEngine(levelConfig)
         lastShownCoins = 0
@@ -221,8 +224,20 @@ class GameActivity : AppCompatActivity() {
         }
     }
 
+    private fun handleDefeatSequence(delayMs: Long = 350L) {
+        if (isDefeatDialogShowing || isFinishing || isDestroyed) return
+        isDefeatDialogShowing = true
+        soundManager.playFail()
+        soundManager.vibrate(80)
+        Handler(Looper.getMainLooper()).postDelayed({
+            if (!isFinishing && !isDestroyed) {
+                showDefeatDialog()
+            }
+        }, delayMs)
+    }
+
     private fun handleTileTap(tile: Tile, force: Boolean = false) {
-        if (!force && isMatchAnimating) return
+        if (!force && (isMatchAnimating || isDefeatDialogShowing)) return
 
         soundManager.playClick()
         soundManager.vibrate(30)
@@ -256,7 +271,9 @@ class GameActivity : AppCompatActivity() {
                     binding.dockTrayView.setDockTiles(gameEngine.dockTiles, targetSlotIndex)
                     updateStatsUI()
 
-                    if (gameEngine.dockTiles.size >= gameEngine.maxDockCapacity - 1) {
+                    if (gameEngine.dockTiles.size >= gameEngine.maxDockCapacity) {
+                        handleDefeatSequence(350L)
+                    } else if (gameEngine.dockTiles.size >= gameEngine.maxDockCapacity - 1) {
                         soundManager.playAlert()
                     }
                 }
@@ -284,7 +301,9 @@ class GameActivity : AppCompatActivity() {
                     soundManager.vibrate(35)
                     updateStatsUI()
 
-                    if (gameEngine.dockTiles.size >= gameEngine.maxDockCapacity - 1) {
+                    if (gameEngine.dockTiles.size >= gameEngine.maxDockCapacity) {
+                        handleDefeatSequence(450L)
+                    } else if (gameEngine.dockTiles.size >= gameEngine.maxDockCapacity - 1) {
                         soundManager.playAlert()
                     }
                 }
@@ -347,20 +366,27 @@ class GameActivity : AppCompatActivity() {
                 binding.tileBoardView.invalidate()
                 binding.flyingTileOverlay.flyTile(tile, startRect, destRect) {
                     binding.dockTrayView.setDockTiles(gameEngine.dockTiles)
+                    if (result.pairIndices != null && result.pairIndices.size >= 2) {
+                        val primaryColor = com.aaritlabs.trinity.model.TileThemeHelper.getPrimaryColor(tile.type)
+                        binding.dockTrayView.animatePairFormed(result.pairIndices, primaryColor)
+                        val center1 = binding.dockTrayView.getSlotScreenCenter(result.pairIndices[0])
+                        val center2 = binding.dockTrayView.getSlotScreenCenter(result.pairIndices[1])
+                        val seamX = dockPos[0] - overlayPos[0] + (center1.x + center2.x) / 2f
+                        val seamY = dockPos[1] - overlayPos[1] + (center1.y + center2.y) / 2f
+                        binding.flyingTileOverlay.burstPairClash(seamX, seamY, tile.type)
+                    }
                     updateStatsUI()
 
-                    soundManager.playFail()
-                    soundManager.vibrate(80)
-
-                    Handler(Looper.getMainLooper()).postDelayed({
-                        showDefeatDialog()
-                    }, 350)
+                    handleDefeatSequence(if (result.pairIndices != null) 450L else 350L)
                 }
             }
 
             GameEngine.TapResult.Ignored -> {
                 soundManager.playAlert()
                 soundManager.vibrate(25)
+                if (gameEngine.dockTiles.size >= gameEngine.maxDockCapacity) {
+                    handleDefeatSequence(100L)
+                }
             }
         }
     }
@@ -783,6 +809,10 @@ class GameActivity : AppCompatActivity() {
             setWindowAnimations(R.style.DialogAnimation)
         }
 
+        dialog.setOnDismissListener {
+            isDefeatDialogShowing = false
+        }
+
         // Wobble icon
         dialogBinding.ivDefeatIcon.animate()
             .rotation(-10f)
@@ -796,6 +826,7 @@ class GameActivity : AppCompatActivity() {
         dialogBinding.btnDefeatRevive.setOnClickListener {
             if (prefs.coins >= 100) {
                 prefs.coins -= 100
+                isDefeatDialogShowing = false
                 dialog.dismiss()
                 soundManager.playUndo()
                 repeat(3) { gameEngine.undo() }
